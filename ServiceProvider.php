@@ -1,10 +1,15 @@
 <?php
-declare(strict_types=1);
 
-namespace WP_Rocket\ThirdParty\Themes;
+namespace WP_Rocket\ThirdParty\Hostings;
 
-use WP_Rocket\Dependencies\League\Container\ServiceProvider\{AbstractServiceProvider, BootableServiceProviderInterface};
+use WP_Rocket\Dependencies\League\Container\ServiceProvider\AbstractServiceProvider;
+use WP_Rocket\Dependencies\League\Container\ServiceProvider\BootableServiceProviderInterface;
+use WP_Rocket\ThirdParty\Hostings\HostResolver;
+use WP_Rocket\ThirdParty\Hostings\HostSubscriberFactory;
 
+/**
+ * Hostings compatibility service provider
+ */
 class ServiceProvider extends AbstractServiceProvider implements BootableServiceProviderInterface {
 	/**
 	 * Array of services provided by this service provider
@@ -30,38 +35,27 @@ class ServiceProvider extends AbstractServiceProvider implements BootableService
 	 * @return void
 	 */
 	public function boot(): void {
-		$theme = ThemeResolver::get_current_theme();
+		$hosting_service = HostResolver::get_host_service();
 
-		if ( ! empty( $theme ) ) {
-			$this->provides[] = $theme;
+		if ( ! empty( $hosting_service ) ) {
+			$this->provides[] = $hosting_service;
 		}
 	}
 
 	/**
-	 * Registers the subscribers in the container
+	 * Registers the current hosting subscriber in the container
+	 *
+	 * @since 3.6.3
 	 *
 	 * @return void
 	 */
 	public function register(): void {
-		$theme = ThemeResolver::get_current_theme();
+		$hosting_service = HostResolver::get_host_service();
 
-		if ( ! empty( $theme ) ) {
-			$factory = new SubscriberFactory();
-
-			$theme_data = $factory->get_subscriber();
-			$arguments  = [];
-
-			if ( empty( $theme_data ) ) {
-				return;
-			}
-
-			foreach ( $theme_data['arguments'] as $arg ) {
-				$arguments[] = $this->getContainer()->get( $arg );
-			}
-
+		if ( ! empty( $hosting_service ) ) {
 			$this->getContainer()
-				->addShared( $theme, $theme_data['class'] )
-				->addArguments( $arguments );
+				->addShared( $hosting_service, ( new HostSubscriberFactory() )->get_subscriber() )
+				->addTag( 'hosting_subscriber' );
 		}
 	}
 }
